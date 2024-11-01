@@ -1,3 +1,6 @@
 {
-  "item.projectedstructures.projector": "Projector"
+  "item.projectedstructures.projector": "Projector",
+  "key.projectedstructures.category": "ProjectedStructures",
+  "key.projectedstructures.nextLayer": "Next Layer",
+  "key.projectedstructures.previousLayer": "Previous Layer"
 }

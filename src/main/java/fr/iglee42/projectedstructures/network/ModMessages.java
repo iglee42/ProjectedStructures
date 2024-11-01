@@ -53,6 +53,11 @@ public class ModMessages {
                 .encoder(ProjectorSwitchKonamiC2SPacket::toBytes)
                 .consumerMainThread(ProjectorSwitchKonamiC2SPacket::handle)
                 .add();
+        net.messageBuilder(ProjectorChangeLayerC2SPacket.class, id(), NetworkDirection.PLAY_TO_SERVER)
+                .decoder(ProjectorChangeLayerC2SPacket::new)
+                .encoder(ProjectorChangeLayerC2SPacket::toBytes)
+                .consumerMainThread(ProjectorChangeLayerC2SPacket::handle)
+                .add();
         net.messageBuilder(OpenProjectorGUIS2CPacket.class, id(), NetworkDirection.PLAY_TO_CLIENT)
                 .decoder(OpenProjectorGUIS2CPacket::new)
                 .encoder(OpenProjectorGUIS2CPacket::toBytes)

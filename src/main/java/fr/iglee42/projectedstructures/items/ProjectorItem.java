@@ -4,6 +4,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import fr.iglee42.igleelib.api.utils.InventoryUtil;
 import fr.iglee42.projectedstructures.ProjectedStructures;
 import fr.iglee42.projectedstructures.ModContent;
+import fr.iglee42.projectedstructures.client.ClientEvents;
 import fr.iglee42.projectedstructures.client.ProjectorScreen;
 import fr.iglee42.projectedstructures.network.ModMessages;
 import fr.iglee42.projectedstructures.network.packets.OpenProjectorGUIS2CPacket;
@@ -14,6 +15,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.network.chat.Component;
@@ -59,6 +61,7 @@ public class ProjectorItem extends Item {
                 BlockPos anchor = getAnchor(stack);
                 components.add(append("Anchored at",anchor.getX()+ " "+anchor.getY()+" " + anchor.getZ()));
             }
+            components.add(append("Layer",(getLayer(stack)== -1 ? "All" : String.valueOf(getLayer(stack)))));
             components.add(Component.empty());
             components.add(append("Left Click","Clear the selected Structure"));
             components.add(append("Right Click","Open the GUI"));
@@ -67,12 +70,16 @@ public class ProjectorItem extends Item {
                 components.add(append("Sneak + Right Click","Remove the anchor"));
             }
             components.add(append("Sneak + Scroll","Rotate the Structure"));
-           // components.add(append("When place + Shift & Right Click","Replace ghost blocks"));
+            components.add(appendTranslatableBase(ClientEvents.ModBus.nextLayer.getKey().getName(),"Show next layer"));
+            components.add(appendTranslatableBase(ClientEvents.ModBus.previousLayer.getKey().getName(),"Show previous layer"));
         }
     }
 
     private Component append(String base,String adding){
         return Component.literal(base).withStyle(ChatFormatting.GOLD).append(Component.literal(" : ").withStyle(ChatFormatting.DARK_GRAY)).append(Component.literal(adding).withStyle(ChatFormatting.YELLOW));
+    }
+    private Component appendTranslatableBase(String base,String adding){
+        return Component.translatable(base).withStyle(ChatFormatting.GOLD).append(Component.literal(" : ").withStyle(ChatFormatting.DARK_GRAY)).append(Component.literal(adding).withStyle(ChatFormatting.YELLOW));
     }
 
     public static boolean hasStructure(ItemStack stack){
@@ -102,6 +109,11 @@ public class ProjectorItem extends Item {
 
     public static boolean getKonami(ItemStack stack){
         return stack.getOrCreateTag().contains("konami") && stack.getOrCreateTag().getBoolean("konami");
+    }
+
+    public static int getLayer(ItemStack stack){
+        if (!stack.getOrCreateTag().contains("layer")) return -1;
+        return stack.getOrCreateTag().getInt("layer");
     }
 
 
@@ -232,6 +244,8 @@ public class ProjectorItem extends Item {
                 if (Minecraft.getInstance().screen instanceof ProjectorScreen screen){
                     screen.konami = !screen.konami;
                     screen.konamiTime = 240;
+                    if (screen.konami)
+                        Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(ModContent.KONAMI_SOUND.get(),0.9f,0.4f));
                     ModMessages.sendToServer(new ProjectorSwitchKonamiC2SPacket(Minecraft.getInstance().player.getUUID(),screen.konami));
                 }
             }

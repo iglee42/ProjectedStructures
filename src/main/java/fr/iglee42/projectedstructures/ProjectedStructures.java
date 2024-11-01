@@ -30,6 +30,7 @@ public class ProjectedStructures {
         ModContent.ITEMS.register(bus);
         ModContent.BLOCKS.register(bus);
         ModContent.BLOCK_ENTITIES.register(bus);
+        ModContent.SOUND_EVENTS.register(bus);
        // ModContent.MENUS.register(bus);
         ModMessages.register();
         ConfigStructures.init();

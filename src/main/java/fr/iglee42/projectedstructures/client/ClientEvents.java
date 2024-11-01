@@ -11,9 +11,12 @@ import fr.iglee42.igleelib.api.utils.InventoryUtil;
 import fr.iglee42.projectedstructures.ModContent;
 import fr.iglee42.projectedstructures.ProjectedStructures;
 import fr.iglee42.projectedstructures.items.ProjectorItem;
+import fr.iglee42.projectedstructures.network.ModMessages;
+import fr.iglee42.projectedstructures.network.packets.ProjectorChangeLayerC2SPacket;
 import fr.iglee42.projectedstructures.utils.Utils;
 import fr.iglee42.projectedstructures.mixins.AccessorMultiBufferSource;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.LightTexture;
@@ -25,6 +28,7 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.EntityBlock;
@@ -34,6 +38,8 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.InputEvent;
+import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.client.model.data.ModelData;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -41,6 +47,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
+import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,8 +61,15 @@ public class ClientEvents {
 
     @Mod.EventBusSubscriber(modid = ProjectedStructures.MODID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public class ModBus {
+        public static final KeyMapping nextLayer = new KeyMapping("key.projectedstructures.nextLayer", GLFW.GLFW_KEY_UP,"key.projectedstructures.category");
+        public static final KeyMapping previousLayer = new KeyMapping("key.projectedstructures.previousLayer", GLFW.GLFW_KEY_DOWN,"key.projectedstructures.category");
         @SubscribeEvent
         public static void clientStuff(final FMLClientSetupEvent event) {
+        }
+        @SubscribeEvent
+        public static void keyMapping(final RegisterKeyMappingsEvent event) {
+            event.register(nextLayer);
+            event.register(previousLayer);
         }
     }
 
@@ -78,8 +92,27 @@ public class ClientEvents {
             }
         }
 
-
-
+        @SubscribeEvent
+        public static void keyPress(InputEvent.Key event) throws IOException, CommandSyntaxException {
+            if (Minecraft.getInstance().player != null && Minecraft.getInstance().player.getMainHandItem().is(ModContent.PROJECTOR.get())){
+                int layer = ProjectorItem.getLayer(Minecraft.getInstance().player.getMainHandItem());
+                if (ModBus.previousLayer.isDown()){
+                    if (layer > -1){
+                        ModMessages.sendToServer(new ProjectorChangeLayerC2SPacket(Minecraft.getInstance().player.getUUID(),layer-1));
+                        Minecraft.getInstance().player.displayClientMessage(Component.literal("Layer : " + (layer - 1 == -1 ? "All" : layer - 1)),true);
+                    }
+                }
+                if (ModBus.nextLayer.isDown()){
+                    StructureTemplate template = Utils.getStructureTemplate(ProjectorItem.getStructurePath(Minecraft.getInstance().player.getMainHandItem()));
+                    if (template != null){
+                        if (layer < template.getSize().getY() - 1){
+                            ModMessages.sendToServer(new ProjectorChangeLayerC2SPacket(Minecraft.getInstance().player.getUUID(),layer+1));
+                            Minecraft.getInstance().player.displayClientMessage(Component.literal("Layer : " + (layer + 1)),true);
+                        }
+                    }
+                }
+            }
+        }
         public static void renderStructure(String structurePath, PoseStack matrix, Rotation rotation,BlockPos basePos) throws IOException, CommandSyntaxException {
             StructureTemplate template = Utils.getStructureTemplate(structurePath);
             if (template != null){
@@ -94,6 +127,9 @@ public class ClientEvents {
                 for (StructureTemplate.Palette palette : template.palettes) {
                     for (StructureTemplate.StructureBlockInfo blockInfo : palette.blocks()) {
                         BlockPos pos = blockInfo.pos();
+                        if (getLayer() > -1){
+                            if (pos.getY() != getLayer()) continue;
+                        }
                         BlockState bs = blockInfo.state();
                         matrix.pushPose();
 
@@ -257,6 +293,19 @@ public class ClientEvents {
             }
             return new GhostBuffers(fallback, remapped);
         }
+
+        private static int getLayer(){
+            Player p = Minecraft.getInstance().player;
+            if (InventoryUtil.hasPlayerStackInInventory(p, ModContent.PROJECTOR.get())) {
+                int slot = InventoryUtil.getFirstInventoryIndex(p, ModContent.PROJECTOR.get());
+                ItemStack stack = p.getInventory().getItem(slot);
+                if (ProjectorItem.hasStructure(stack)) {
+                    return ProjectorItem.getLayer(stack);
+                }
+            }
+            return -1;
+        }
+
 
         private static class GhostBuffers extends MultiBufferSource.BufferSource {
             protected GhostBuffers(BufferBuilder fallback, Map<RenderType, BufferBuilder> layerBuffers) {

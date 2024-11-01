@@ -29,6 +29,7 @@ public class ProjectorClearStructureC2SPacket {
             ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayer(playerUUID).getMainHandItem().getOrCreateTag().remove("structurePath");
             ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayer(playerUUID).getMainHandItem().getOrCreateTag().remove("rotation");
             ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayer(playerUUID).getMainHandItem().getOrCreateTag().remove("anchor");
+            ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayer(playerUUID).getMainHandItem().getOrCreateTag().remove("layer");
         });
         return true;
     }

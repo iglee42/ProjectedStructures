@@ -24,7 +24,7 @@ public class TransparencyButton extends Button {
 
     public TransparencyButton(int x, int y,boolean initial) {
         super(x, y, 20, 20, Component.empty(), btn->{}, Supplier::get);
-        setTooltip(Tooltip.create(Component.literal("(Des)Activate the fact that blocks can be viewed through walls")));
+        setTooltip(Tooltip.create(Component.literal("(De)Activate the fact that blocks can be viewed through walls")));
         this.transparency = initial;
     }
 
