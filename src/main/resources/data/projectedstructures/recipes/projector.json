@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " B ",
+    " G ",
+    " I "
+  ],
+  "key": {
+    "G": {
+      "tag": "forge:glass"
+    },
+    "I": {
+      "tag": "forge:storage_blocks/iron"
+    },
+    "B": {
+      "item": "minecraft:bell"
+    }
+  },
+  "result": {
+    "item": "projectedstructures:projector"
+  }
+}
