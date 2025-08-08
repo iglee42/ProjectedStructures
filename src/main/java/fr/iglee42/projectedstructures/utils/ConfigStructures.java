@@ -104,10 +104,10 @@ public class ConfigStructures {
     }
 
     public static File getStructure(String structurePath) {
-        return new File(STRUCTURES_PATH.toFile(),structurePath.substring(1));
+        return new File(STRUCTURES_PATH.toFile(),structurePath);
     }
 
     public static Path getFullPath(String structurePath) {
-        return STRUCTURES_PATH.resolve(structurePath.substring(1));
+        return STRUCTURES_PATH.resolve(structurePath);
     }
 }

@@ -10,19 +10,24 @@ import fr.iglee42.projectedstructures.network.packets.ProjectorNewItemC2SPacket;
 import fr.iglee42.projectedstructures.utils.ConfigStructures;
 import fr.iglee42.projectedstructures.utils.Utils;
 import net.minecraft.ChatFormatting;
+import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.Vec3i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import org.jetbrains.annotations.NotNull;
 
 import java.awt.*;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
@@ -39,10 +44,10 @@ public class ProjectorScreen extends Screen {
 
     private int x;
     private int y;
-    private List<String> structures;
 
     private StructureButton selectedButton = null;
-    private final List<List<StructureButton>> pages = new ArrayList<>();
+    private final List<StructureButton> buttons = new ArrayList<>();
+    private final List<StructureButton> showedButtons = new ArrayList<>();
     private int currentPage = 0;
 
     private Button previousPageButton;
@@ -51,8 +56,12 @@ public class ProjectorScreen extends Screen {
     private final boolean initialTransparency;
     private TransparencyButton transparencyButton;
 
+    private EditBox searchField;
+
     public boolean konami;
     public int konamiTime = 0;
+
+    private List<String> paths;
 
     public ProjectorScreen(boolean transparency,boolean konami) {
         super(Component.translatable("item.projectedstructures.projector"));
@@ -68,19 +77,30 @@ public class ProjectorScreen extends Screen {
         y = (this.height - this.imgHeight) / 2;
         baseY = y + 21;
         //ModMessages.sendToServer(new ProjectorStructuresSyncC2SPacket());
-        structures = new ArrayList<>(ConfigStructures.getStructures());
-        Collections.reverse(structures);
+        paths = new ArrayList<>(ConfigStructures.getStructuresPaths().stream().map(s->s.substring(1)).toList());
+        paths.sort((s1,s2)-> {
+                boolean s1Slash = s1.contains("/");
+                boolean s2Slash = s2.contains("/");
+
+                if (s1Slash && !s2Slash) {
+                    return -1;
+                } else if (!s1Slash && s2Slash) {
+                    return 1;
+                } else {
+                    return s1.compareTo(s2);
+                }
+            });
         previousPageButton = addRenderableWidget(new Button.Builder(Component.literal("▲"),btn->{
             if (currentPage - 1 >= 0) {
                 currentPage--;
-                renderables.clear();
+                if (selectedButton != null)selectedButton.active = true;
                 selectedButton = null;
             }
         }).pos(x + 6, baseY).size( 100, 11).createNarration( Supplier::get).build());
         nextPageButton = addRenderableWidget(new Button.Builder(Component.literal("▼"),btn->{
-            if (currentPage + 1 < pages.size()) {
+            if ((currentPage + 1) * MAX_PAGE_SIZE  < buttons.size()) {
                 currentPage++;
-                renderables.clear();
+                if (selectedButton != null)selectedButton.active = true;
                 selectedButton = null;
             }
         }).pos(x + 6, baseY+111).size( 100, 11).createNarration(Supplier::get).build());
@@ -90,27 +110,19 @@ public class ProjectorScreen extends Screen {
         }).pos(x+120,y + 147).size(imgWidth - 130,15).createNarration(Supplier::get).build());
 
         transparencyButton = addRenderableWidget(new TransparencyButton(x + 6,baseY + 125,initialTransparency));
+        searchField = addRenderableWidget(new EditBox(Minecraft.getInstance().font,x + 28,baseY + 127,78,16,Component.empty()));
+        searchField.setHint(Component.literal("Search"));
 
-        pages.clear();
         renderables.clear();
-        AtomicInteger currentPageIndex = new AtomicInteger(0);
-        AtomicInteger pageIndex = new AtomicInteger(0);
-        List<String> paths = ConfigStructures.getStructuresPaths();
-        List<String> allStructures = new ArrayList<>(structures);
 
-        structures.forEach(r->{
-            String path = paths.stream().filter(s->s.endsWith(r)).findFirst().orElse("Unknown Path");
-            paths.remove(path);
-            StructureButton b = new StructureButton(x + 6, baseY + 11 + currentPageIndex.get() * 20, 100, 20, Component.literal(r.replaceAll("\\.s*nbt","")), bt -> selectedButton = (StructureButton) bt,r,path);
-            allStructures.remove(r);
-            if (pages.size() < pageIndex.get() + 1)
-                pages.add(new ArrayList<>());
-            pages.get(pageIndex.get()).add(b);
-            if (currentPageIndex.incrementAndGet() == 5) {
-                currentPageIndex.set(0);
-                pageIndex.incrementAndGet();
-            }
+        paths.forEach(p->{
+            int index = paths.indexOf(p);
+            String[] splittedPath = p.split("/");
+            StructureButton b = new StructureButton(x + 6, baseY + 11 + (index % MAX_PAGE_SIZE) * 20, 100, 20, Component.literal(ModsUtils.getUpperName(splittedPath[splittedPath.length - 1],"_").replaceAll("\\.s*nbt","")), bt -> selectedButton = (StructureButton) bt,splittedPath[splittedPath.length - 1],p);
+            buttons.add(b);
+            addWidget(b);
         });
+
     }
 
     @Override
@@ -125,27 +137,41 @@ public class ProjectorScreen extends Screen {
     public void render(@NotNull GuiGraphics poseStack, int mouseX, int mouseY, float pt) {
         this.renderBackground(poseStack);
 
-        if (currentPage >= pages.size()) currentPage = pages.size() - 1;
-        this.pages.stream().filter(l->pages.indexOf(l) != currentPage).forEach(l->l.forEach(b->b.active = false));
-        if (!pages.isEmpty()) {
-            this.pages.get(currentPage).forEach(b -> {
-                if (selectedButton != b) b.active = true;
-                if (!renderables.contains(b)) addRenderableWidget(b);
-            });
-        }
+
         super.render(poseStack,mouseX,mouseY,pt);
+        showedButtons.clear();
+        buttons.forEach(b->{
+            if (searchField.getValue().isEmpty()){
+                showedButtons.add(b);
+                b.active = true;
+            } else {
+                if (b.getStructureName().contains(searchField.getValue()))
+                    showedButtons.add(b);
+            }
+            if (!showedButtons.contains(b))b.active = false;
+        });
+
+        currentPage = Mth.clamp(currentPage,0,showedButtons.size() / MAX_PAGE_SIZE);
+
+        showedButtons.forEach(b->{
+            b.active = !b.equals(selectedButton);
+            b.setY(baseY + 11 + (showedButtons.indexOf(b) % MAX_PAGE_SIZE) * 20);
+            b.visible = buttons.indexOf(b) >= currentPage * MAX_PAGE_SIZE && showedButtons.indexOf(b) < currentPage * MAX_PAGE_SIZE + MAX_PAGE_SIZE;
+            b.render(poseStack, mouseX, mouseY, pt);
+        });
         previousPageButton.render(poseStack, mouseX, mouseY, pt);
         nextPageButton.render(poseStack, mouseX, mouseY, pt);
         validateButton.render(poseStack, mouseX, mouseY, pt);
         transparencyButton.render(poseStack, mouseX, mouseY, pt);
-        if (structures == null || structures.isEmpty()){
+        searchField.render(poseStack, mouseX, mouseY, pt);
+        if (paths == null || paths.isEmpty()){
             poseStack.drawCenteredString(font,"There is no structure !",x + 50,y+30, Color.WHITE.getRGB());
         }
         if (selectedButton != null){
-            this.pages.forEach(l->l.stream().filter(b -> selectedButton.equals(b)).findFirst().ifPresent(b->b.active = false));
+            this.showedButtons.forEach(b->b.active = !b.equals(selectedButton));
             //renderStructureImage(selectedButton.getPath(),poseStack);
-            poseStack.drawString(font,"Name : " + ModsUtils.getUpperName(selectedButton.getStructureName(),"_").replaceAll("\\.s*nbt",""),x + 120, y +110, ChatFormatting.WHITE.getColor());
-            poseStack.drawString(font,"Path : " + selectedButton.getPath().substring(1),x + 120, y + 122 , ChatFormatting.WHITE.getColor());
+            renderScrollingString(poseStack,font,Component.literal("Name : " + ModsUtils.getUpperName(selectedButton.getStructureName(),"_").replaceAll("\\.s*nbt","")),x + 120, y +110,x+imgWidth - 8, y + 119, ChatFormatting.WHITE.getColor());
+            renderScrollingString(poseStack,font,Component.literal("Path : " + selectedButton.getPath()),x + 120, y + 122,x+imgWidth - 8, y + 131 , ChatFormatting.WHITE.getColor());
             try {
                 Vec3i size = Utils.getStructureTemplate(selectedButton.getPath()).getSize();
                 poseStack.drawString(font, "Size : " +size.getX() + "x"+size.getY()+"x"+size.getZ(), x + 120, y + 134, ChatFormatting.WHITE.getColor());
@@ -168,7 +194,7 @@ public class ProjectorScreen extends Screen {
 
         }
         this.previousPageButton.active = currentPage > 0;
-        this.nextPageButton.active = currentPage < pages.size() -1 ;
+        this.nextPageButton.active = (currentPage + 1) * MAX_PAGE_SIZE < showedButtons.size();
         this.validateButton.visible = selectedButton != null;
 
         if (konamiTime > 0 && konami) {
@@ -198,7 +224,14 @@ public class ProjectorScreen extends Screen {
 
     }
 
-    private void renderStructureImage(String path,PoseStack stack) {
+    @Override
+    public void resize(Minecraft p_96575_, int p_96576_, int p_96577_) {
+        this.buttons.clear();
+        this.showedButtons.clear();
+        super.resize(p_96575_, p_96576_, p_96577_);
+    }
+
+    private void renderStructureImage(String path, PoseStack stack) {
         /*if (ConfigStructures.getImage(path) != null) {
             RenderSystem.setShader(GameRenderer::getPositionTexShader);
             RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
@@ -215,5 +248,23 @@ public class ProjectorScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+    protected static void renderScrollingString(GuiGraphics p_281620_, Font p_282651_, Component p_281467_, int p_283621_, int p_282084_, int p_283398_, int p_281938_, int p_283471_) {
+        int i = p_282651_.width(p_281467_);
+        int j = (p_282084_ + p_281938_ - 9) / 2 + 1;
+        int k = p_283398_ - p_283621_;
+        if (i > k) {
+            int l = i - k;
+            double d0 = (double) Util.getMillis() / 1000.0D;
+            double d1 = Math.max((double)l * 0.5D, 3.0D);
+            double d2 = Math.sin((Math.PI / 2D) * Math.cos((Math.PI * 2D) * d0 / d1)) / 2.0D + 0.5D;
+            double d3 = Mth.lerp(d2, 0.0D, (double)l);
+            p_281620_.enableScissor(p_283621_, p_282084_, p_283398_, p_281938_);
+            p_281620_.drawString(p_282651_, p_281467_, p_283621_ - (int)d3, j, p_283471_);
+            p_281620_.disableScissor();
+        } else {
+            p_281620_.drawCenteredString(p_282651_, p_281467_, (p_283621_ + p_283398_) / 2, j, p_283471_);
+        }
+
     }
 }
