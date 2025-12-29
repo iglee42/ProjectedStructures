@@ -15,6 +15,7 @@ public class Utils {
 
     public static StructureTemplate getStructureTemplate(String path) throws IOException, CommandSyntaxException {
         if (path.isEmpty()) return null;
+        if (!ConfigStructures.getFullPath(path).toFile().exists()) return null;
         StructureTemplate template = new StructureTemplate();
         CompoundTag nbt;
         if (path.endsWith(".snbt")) {

@@ -21,6 +21,7 @@ import net.minecraft.core.Vec3i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import org.jetbrains.annotations.NotNull;
 
 import java.awt.*;
@@ -145,7 +146,7 @@ public class ProjectorScreen extends Screen {
                 showedButtons.add(b);
                 b.active = true;
             } else {
-                if (b.getStructureName().contains(searchField.getValue()))
+                if (b.getStructureName().toLowerCase().contains(searchField.getValue().toLowerCase()) || b.getPath().toLowerCase().contains(searchField.getValue().toLowerCase()))
                     showedButtons.add(b);
             }
             if (!showedButtons.contains(b))b.active = false;
@@ -173,21 +174,22 @@ public class ProjectorScreen extends Screen {
             renderScrollingString(poseStack,font,Component.literal("Name : " + ModsUtils.getUpperName(selectedButton.getStructureName(),"_").replaceAll("\\.s*nbt","")),x + 120, y +110,x+imgWidth - 8, y + 119, ChatFormatting.WHITE.getColor());
             renderScrollingString(poseStack,font,Component.literal("Path : " + selectedButton.getPath()),x + 120, y + 122,x+imgWidth - 8, y + 131 , ChatFormatting.WHITE.getColor());
             try {
-                Vec3i size = Utils.getStructureTemplate(selectedButton.getPath()).getSize();
-                poseStack.drawString(font, "Size : " +size.getX() + "x"+size.getY()+"x"+size.getZ(), x + 120, y + 134, ChatFormatting.WHITE.getColor());
-                try {
-                    if (!(size.getX() > 24 || size.getY() > 24 || size.getZ() > 24) ) {
-                        poseStack.pose().pushPose();
-                        RenderSystem.setShaderColor(1, 1, 1, 1);
-                        ClientEvents.ForgeBus.renderStructure(selectedButton.getPath(), poseStack.pose(), x + imgWidth / 2 + 40, y + imgHeight / 2 - 45, (this.width) / 6);
-                        poseStack.pose().popPose();
-                    } else {
-                        poseStack.drawString(font,"The structure size is",x + 120, y +40, ChatFormatting.RED.getColor());
-                        poseStack.drawString(font,"too big to be rendered",x + 120, y +50, ChatFormatting.RED.getColor());
-                        poseStack.drawString(font,"Max size : 24x24x24",x + 120, y +60, ChatFormatting.RED.getColor());
-                    }
-                } catch (IOException | CommandSyntaxException e) {
-                    throw new RuntimeException(e);
+                StructureTemplate template = Utils.getStructureTemplate(selectedButton.getPath());
+                if (template != null) {
+                    Vec3i size = template.getSize();
+                    poseStack.drawString(font, "Size : " + size.getX() + "x" + size.getY() + "x" + size.getZ(), x + 120, y + 134, ChatFormatting.WHITE.getColor());
+                    try {
+                        if (!(size.getX() > 24 || size.getY() > 24 || size.getZ() > 24)) {
+                            poseStack.pose().pushPose();
+                            RenderSystem.setShaderColor(1, 1, 1, 1);
+                            ClientEvents.ForgeBus.renderStructure(selectedButton.getPath(), poseStack.pose(), x + imgWidth / 2 + 40, y + imgHeight / 2 - 45, (this.width) / 6);
+                            poseStack.pose().popPose();
+                        } else {
+                            poseStack.drawString(font, "The structure size is", x + 120, y + 40, ChatFormatting.RED.getColor());
+                            poseStack.drawString(font, "too big to be rendered", x + 120, y + 50, ChatFormatting.RED.getColor());
+                            poseStack.drawString(font, "Max size : 24x24x24", x + 120, y + 60, ChatFormatting.RED.getColor());
+                        }
+                    } catch (IOException | CommandSyntaxException ignored) {}
                 }
 
             } catch (Exception ignored){}

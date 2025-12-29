@@ -45,6 +45,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
+import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 import org.lwjgl.glfw.GLFW;
@@ -118,12 +119,6 @@ public class ClientEvents {
             if (template != null){
                 MultiBufferSource.BufferSource buffers = initBuffers(Minecraft.getInstance().renderBuffers().bufferSource());
                 matrix.pushPose();
-                /*matrix.mulPose(Axis.YP.rotationDegrees(switch (rotation){
-                    case NONE -> 0;
-                    case CLOCKWISE_90 -> 90;
-                    case CLOCKWISE_180 -> 180;
-                    case COUNTERCLOCKWISE_90 -> 270;
-                }));*/
                 for (StructureTemplate.Palette palette : template.palettes) {
                     for (StructureTemplate.StructureBlockInfo blockInfo : palette.blocks()) {
                         BlockPos pos = blockInfo.pos();
@@ -141,32 +136,63 @@ public class ClientEvents {
                             matrix.scale(1.002f,1.002f,1.002f);
                             renderBlock(bs, pos, matrix, buffers,true,basePos);
                             matrix.popPose();
-                        }
 
-                        matrix.popPose();
-                        BlockEntity te = null;
-                        if (bs.getBlock() instanceof EntityBlock) {
-                            te = ((EntityBlock) bs.getBlock()).newBlockEntity(pos, bs);
-                        }
+                            if (!Minecraft.getInstance().level.getBlockState(basePos.offset(pos)).isAir()){
+                                matrix.pushPose();
+                                matrix.translate(pos.getX(), pos.getY(), pos.getZ());
+                                VertexConsumer consumer = buffers.getBuffer(RenderType.lines());
+                                Matrix4f mat = matrix.last().pose();
+                                Matrix3f normalMat = matrix.last().normal();
+                                // draw red outline around the block (unit cube from 0..1)
+                                float r = 1f, g = 0f, b = 0f, a = 1f;
 
-                        if (te != null) {
-                            te.setLevel(FakeLevel.getInstance());
-
-                            // fake cached state in case the renderer checks it as we don't want to query the actual world
-                            //noinspection deprecation
-                            te.setBlockState(bs);
-
-                            matrix.pushPose();
-                            try {
-                                BlockEntityRenderer<BlockEntity> renderer = Minecraft.getInstance().getBlockEntityRenderDispatcher().getRenderer(te);
-                                if (renderer != null) {
-                                    renderer.render(te, 0, matrix, buffers, LightTexture.pack(15, 15), OverlayTexture.NO_OVERLAY);
+                                if (Minecraft.getInstance().level.getBlockState(basePos.offset(pos)).getBlock() == bs.getBlock()){
+                                    g = 1f;
                                 }
-                            } catch (Exception ignored) {
-                            } finally {
+                                // bottom square
+                                consumer.vertex(mat, -0.001f, -0.001f, -0.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+                                consumer.vertex(mat, 1.001f, -0.001f, -0.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+
+                                consumer.vertex(mat, 1.001f, -0.001f, -0.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+                                consumer.vertex(mat, 1.001f, -0.001f, 1.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+
+                                consumer.vertex(mat, 1.001f, -0.001f, 1.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+                                consumer.vertex(mat, -0.001f, -0.001f, 1.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+
+                                consumer.vertex(mat, -0.001f, -0.001f, 1.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+                                consumer.vertex(mat, -0.001f, -0.001f, -0.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+
+                                // top square
+                                consumer.vertex(mat, -0.001f, 1.001f, -0.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+                                consumer.vertex(mat, 1.001f, 1.001f, -0.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+
+                                consumer.vertex(mat, 1.001f, 1.001f, -0.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+                                consumer.vertex(mat, 1.001f, 1.001f, 1.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+
+                                consumer.vertex(mat, 1.001f, 1.001f, 1.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+                                consumer.vertex(mat, -0.001f, 1.001f, 1.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+
+                                consumer.vertex(mat, -0.001f, 1.001f, 1.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+                                consumer.vertex(mat, -0.001f, 1.001f, -0.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+
+                                // vertical edges
+                                consumer.vertex(mat, -0.001f, -0.001f, -0.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+                                consumer.vertex(mat, -0.001f, 1.001f, -0.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+
+                                consumer.vertex(mat, 1.001f, -0.001f, -0.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+                                consumer.vertex(mat, 1.001f, 1.001f, -0.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+
+                                consumer.vertex(mat, 1.001f, -0.001f, 1.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+                                consumer.vertex(mat, 1.001f, 1.001f, 1.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+
+                                consumer.vertex(mat, -0.001f, -0.001f, 1.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+                                consumer.vertex(mat, -0.001f, 1.001f, 1.001f).color(r, g, b, a).normal(normalMat,0,1,0).endVertex();
+
                                 matrix.popPose();
                             }
                         }
+
+                        matrix.popPose();
 
                     }
                 }
@@ -224,7 +250,7 @@ public class ClientEvents {
                         eye.mul(rotMat);
                         renderBlock(bs, pos, matrix, buffers,true,Minecraft.getInstance().player.blockPosition());
                         matrix.popPose();
-                        BlockEntity te = null;
+                        /*BlockEntity te = null;
                         if (bs.getBlock() instanceof EntityBlock) {
                             te = ((EntityBlock) bs.getBlock()).newBlockEntity(pos, bs);
                         }
@@ -246,7 +272,7 @@ public class ClientEvents {
                             } finally {
                                 matrix.popPose();
                             }
-                        }
+                        }*/
 
                     }
                 }
@@ -279,6 +305,31 @@ public class ClientEvents {
                         matrix.translate(0,2/16f,0);
                         Minecraft.getInstance().getBlockRenderer().renderLiquid(pos,Minecraft.getInstance().level,new LiquidBlockVertexConsumer(buffers.getBuffer(ItemBlockRenderTypes.getRenderLayer(state.getFluidState())),matrix,pos),state,state.getFluidState());
                     }
+                    matrix.popPose();
+                }
+            }
+
+            BlockEntity te = null;
+            if (state.getBlock() instanceof EntityBlock) {
+                te = ((EntityBlock) state.getBlock()).newBlockEntity(pos, state);
+            }
+
+            if (te != null) {
+                te.setLevel(FakeLevel.getInstance());
+
+                // fake cached state in case the renderer checks it as we don't want to query the actual world
+                //noinspection deprecation
+                te.setBlockState(state);
+
+                matrix.pushPose();
+                if (shouldTranslate)matrix.translate(pos.getX(), pos.getY(), pos.getZ());
+                try {
+                    BlockEntityRenderer<BlockEntity> renderer = Minecraft.getInstance().getBlockEntityRenderDispatcher().getRenderer(te);
+                    if (renderer != null) {
+                        renderer.render(te, 0, matrix, buffers, LightTexture.pack(15, 15), OverlayTexture.NO_OVERLAY);
+                    }
+                } catch (Exception ignored) {
+                } finally {
                     matrix.popPose();
                 }
             }
