@@ -61,7 +61,7 @@ public class ModMessages {
         net.messageBuilder(OpenProjectorGUIS2CPacket.class, id(), NetworkDirection.PLAY_TO_CLIENT)
                 .decoder(OpenProjectorGUIS2CPacket::new)
                 .encoder(OpenProjectorGUIS2CPacket::toBytes)
-                .consumerMainThread(OpenProjectorGUIS2CPacket::handle)
+                .consumerMainThread((packet,ctx)->OpenProjectorGuiHandler.handle(packet,ctx))
                 .add();
 
     }

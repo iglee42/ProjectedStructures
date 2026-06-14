@@ -1,11 +1,6 @@
 package fr.iglee42.projectedstructures.network.packets;
 
-import fr.iglee42.projectedstructures.client.ProjectorScreen;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.network.NetworkEvent;
-
-import java.util.function.Supplier;
 
 public class OpenProjectorGUIS2CPacket {
 
@@ -28,10 +23,11 @@ public class OpenProjectorGUIS2CPacket {
         buf.writeBoolean(konami);
     }
 
-    public boolean handle(Supplier<NetworkEvent.Context> ctx){
-        ctx.get().enqueueWork(()->{
-            Minecraft.getInstance().setScreen(new ProjectorScreen(transparency,konami));
-        });
-        return true;
+    public boolean transparency() {
+        return transparency;
+    }
+
+    public boolean konami() {
+        return konami;
     }
 }

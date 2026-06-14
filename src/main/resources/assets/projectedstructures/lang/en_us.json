@@ -2,5 +2,16 @@
   "item.projectedstructures.projector": "Projector",
   "key.projectedstructures.category": "ProjectedStructures",
   "key.projectedstructures.nextLayer": "Next Layer",
-  "key.projectedstructures.previousLayer": "Previous Layer"
+  "key.projectedstructures.previousLayer": "Previous Layer",
+
+  "gui.projectedstructures.search": "Search",
+  "gui.projectedstructures.validate": "Validate",
+  "gui.projectedstructures.name": "Path: %s",
+  "gui.projectedstructures.path": "Path: %s",
+  "gui.projectedstructures.size": "Size: %sx%sx%s",
+  "gui.projectedstructures.structure_too_large": "Structure too large to render",
+  "gui.projectedstructures.max_size": "Max Size: %sx%sx%s",
+  "gui.projectedstructures.no_search_results": "No search results",
+  "gui.projectedstructures.folder_empty": "No items in this folder",
+  "gui.projectedstructures.transparency_button": "(De)Activate the fact that blocks can be viewed through walls"
 }
